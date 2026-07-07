@@ -5,6 +5,7 @@ import http from "http";
 import { Server } from "socket.io";
 import authRoutes from "./routes/auth.routes";
 import quizRoutes from "./routes/quiz.routes";
+import questionRoutes from "./routes/question.routes";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.get("/", (req, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/quizzes", quizRoutes);
+app.use("/", questionRoutes);
 
 const server = http.createServer(app);
 
