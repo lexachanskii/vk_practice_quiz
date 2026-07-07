@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import http from "http";
 import { Server } from "socket.io";
 import authRoutes from "./routes/auth.routes";
+import quizRoutes from "./routes/quiz.routes";
 
 dotenv.config();
 
@@ -23,6 +24,7 @@ app.get("/", (req, res) => {
 });
 
 app.use("/auth", authRoutes);
+app.use("/quizzes", quizRoutes);
 
 const server = http.createServer(app);
 
@@ -51,3 +53,4 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server started on port ${PORT}`);
 });
+
