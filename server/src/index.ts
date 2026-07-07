@@ -6,6 +6,8 @@ import { Server } from "socket.io";
 import authRoutes from "./routes/auth.routes";
 import quizRoutes from "./routes/quiz.routes";
 import questionRoutes from "./routes/question.routes";
+import sessionRoutes from "./routes/session.routes";
+import { registerQuizSocket } from "./socket/quiz.socket";
 
 dotenv.config();
 
@@ -27,6 +29,7 @@ app.get("/", (req, res) => {
 app.use("/auth", authRoutes);
 app.use("/quizzes", quizRoutes);
 app.use("/", questionRoutes);
+app.use("/", sessionRoutes);
 
 const server = http.createServer(app);
 
@@ -37,18 +40,7 @@ const io = new Server(server, {
   },
 });
 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
-
-  socket.on("join_room", (roomCode) => {
-    socket.join(roomCode);
-    console.log(`User ${socket.id} joined room ${roomCode}`);
-  });
-
-  socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
-  });
-});
+registerQuizSocket(io);
 
 const PORT = process.env.PORT || 5000;
 
