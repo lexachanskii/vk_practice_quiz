@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Quiz Socket.IO Test</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 24px;
+        background: #f5f5f5;
+      }
+
+      h1, h2 {
+        margin-bottom: 8px;
+      }
+
+      section {
+        background: white;
+        padding: 16px;
+        margin-bottom: 16px;
+        border-radius: 12px;
+        border: 1px solid #ddd;
+      }
+
+      input, textarea, button {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+        margin: 6px 0 12px;
+        padding: 10px;
+        font-size: 14px;
+      }
+
+      button {
+        cursor: pointer;
+        font-weight: bold;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+
+      #log {
+        background: #111;
+        color: #00ff90;
+        padding: 16px;
+        border-radius: 12px;
+        height: 380px;
+        overflow: auto;
+        white-space: pre-wrap;
+        font-family: Consolas, monospace;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Quiz Socket.IO Test</h1>
+
+    <section>
+      <h2>1. Подключение к Socket.IO</h2>
+      <button onclick="connectSocket()">Connect socket</button>
+      <button onclick="disconnectSocket()">Disconnect socket</button>
+    </section>
+
+    <section>
+      <h2>2. Общие данные</h2>
+
+      <label>JWT token организатора</label>
+      <textarea id="token" rows="4" placeholder="Вставь token из /auth/login"></textarea>
+
+      <label>Quiz ID</label>
+      <input id="quizId" placeholder="id квиза" />
+
+      <label>Session ID</label>
+      <input id="sessionId" placeholder="id сессии" />
+
+      <label>Room Code</label>
+      <input id="roomCode" placeholder="код комнаты, например ABCD12" />
+
+      <label>Participant ID</label>
+      <input id="participantId" placeholder="id участника после /sessions/join" />
+
+      <label>Question ID</label>
+      <input id="questionId" placeholder="id текущего вопроса" />
+
+      <label>Selected Option IDs через запятую</label>
+      <input id="selectedOptionIds" placeholder="optionId1,optionId2" />
+    </section>
+
+    <div class="row">
+      <section>
+        <h2>3. REST: создать комнату</h2>
+        <button onclick="startSessionRest()">POST /quizzes/:id/start</button>
+      </section>
+
+      <section>
+        <h2>4. REST: подключить участника</h2>
+
+        <label>Nickname</label>
+        <input id="nickname" value="Player1" />
+
+        <button onclick="joinSessionRest()">POST /sessions/join</button>
+      </section>
+    </div>
+
+    <div class="row">
+      <section>
+        <h2>5. Socket: организатор</h2>
+
+        <button onclick="organizerJoinSession()">organizer_join_session</button>
+        <button onclick="startSessionSocket()">start_session</button>
+        <button onclick="showQuestionSocket()">show_question</button>
+        <button onclick="finishQuestionSocket()">finish_question</button>
+        <button onclick="finishSessionSocket()">finish_session</button>
+      </section>
+
+      <section>
+        <h2>6. Socket: участник</h2>
+
+        <button onclick="participantJoinSession()">participant_join_session</button>
+        <button onclick="submitAnswerSocket()">submit_answer</button>
+      </section>
+    </div>
+
+    <section>
+      <h2>Лог событий</h2>
+      <button onclick="clearLog()">Clear log</button>
+      <div id="log"></div>
+    </section>
+
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+      let socket = null;
+
+      function value(id) {
+        return document.getElementById(id).value.trim();
+      }
+
+      function setValue(id, newValue) {
+        document.getElementById(id).value = newValue;
+      }
+
+      function log(title, data) {
+        const logElement = document.getElementById("log");
+        const time = new Date().toLocaleTimeString();
+
+        logElement.textContent += `\n[${time}] ${title}\n`;
+        logElement.textContent += `${JSON.stringify(data, null, 2)}\n`;
+        logElement.scrollTop = logElement.scrollHeight;
+      }
+
+      function clearLog() {
+        document.getElementById("log").textContent = "";
+      }
+
+      function connectSocket() {
+        socket = io("http://localhost:5000");
+
+        socket.on("connect", () => {
+          log("socket connected", { socketId: socket.id });
+        });
+
+        socket.on("disconnect", () => {
+          log("socket disconnected", {});
+        });
+
+        socket.on("organizer_joined_session", (data) => {
+          log("organizer_joined_session", data);
+        });
+
+        socket.on("participant_joined", (data) => {
+          log("participant_joined", data);
+        });
+
+        socket.on("session_started", (data) => {
+          log("session_started", data);
+        });
+
+        socket.on("question_started", (data) => {
+          log("question_started", data);
+
+          if (data?.question?.id) {
+            setValue("questionId", data.question.id);
+          }
+
+          if (data?.question?.options?.length) {
+            log("options for answer", data.question.options);
+          }
+        });
+
+        socket.on("answer_accepted", (data) => {
+          log("answer_accepted", data);
+        });
+
+        socket.on("answer_received", (data) => {
+          log("answer_received", data);
+        });
+
+        socket.on("question_finished", (data) => {
+          log("question_finished", data);
+        });
+
+        socket.on("leaderboard_updated", (data) => {
+          log("leaderboard_updated", data);
+        });
+
+        socket.on("session_finished", (data) => {
+          log("session_finished", data);
+        });
+      }
+
+      function disconnectSocket() {
+        if (socket) {
+          socket.disconnect();
+          socket = null;
+        }
+      }
+
+      async function startSessionRest() {
+        const quizId = value("quizId");
+        const token = value("token");
+
+        const response = await fetch(`http://localhost:5000/quizzes/${quizId}/start`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await response.json();
+        log("POST /quizzes/:id/start", data);
+
+        if (data?.session?.id) {
+          setValue("sessionId", data.session.id);
+        }
+
+        if (data?.session?.roomCode) {
+          setValue("roomCode", data.session.roomCode);
+        }
+      }
+
+      async function joinSessionRest() {
+        const roomCode = value("roomCode");
+        const nickname = value("nickname");
+
+        const response = await fetch("http://localhost:5000/sessions/join", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            roomCode,
+            nickname,
+          }),
+        });
+
+        const data = await response.json();
+        log("POST /sessions/join", data);
+
+        if (data?.session?.id) {
+          setValue("sessionId", data.session.id);
+        }
+
+        if (data?.participant?.id) {
+          setValue("participantId", data.participant.id);
+        }
+      }
+
+      function organizerJoinSession() {
+        socket.emit(
+          "organizer_join_session",
+          {
+            sessionId: value("sessionId"),
+            token: value("token"),
+          },
+          (response) => {
+            log("callback organizer_join_session", response);
+          }
+        );
+      }
+
+      function participantJoinSession() {
+        socket.emit(
+          "participant_join_session",
+          {
+            sessionId: value("sessionId"),
+            participantId: value("participantId"),
+          },
+          (response) => {
+            log("callback participant_join_session", response);
+          }
+        );
+      }
+
+      function startSessionSocket() {
+        socket.emit(
+          "start_session",
+          {
+            sessionId: value("sessionId"),
+            token: value("token"),
+          },
+          (response) => {
+            log("callback start_session", response);
+          }
+        );
+      }
+
+      function showQuestionSocket() {
+        const questionId = value("questionId");
+
+        const payload = {
+          sessionId: value("sessionId"),
+          token: value("token"),
+        };
+
+        if (questionId) {
+          payload.questionId = questionId;
+        }
+
+        socket.emit("show_question", payload, (response) => {
+          log("callback show_question", response);
+        });
+      }
+
+      function submitAnswerSocket() {
+        const selectedOptionIds = value("selectedOptionIds")
+          .split(",")
+          .map((id) => id.trim())
+          .filter(Boolean);
+
+        socket.emit(
+          "submit_answer",
+          {
+            sessionId: value("sessionId"),
+            participantId: value("participantId"),
+            questionId: value("questionId"),
+            selectedOptionIds,
+          },
+          (response) => {
+            log("callback submit_answer", response);
+          }
+        );
+      }
+
+      function finishQuestionSocket() {
+        socket.emit(
+          "finish_question",
+          {
+            sessionId: value("sessionId"),
+            token: value("token"),
+            questionId: value("questionId"),
+          },
+          (response) => {
+            log("callback finish_question", response);
+          }
+        );
+      }
+
+      function finishSessionSocket() {
+        socket.emit(
+          "finish_session",
+          {
+            sessionId: value("sessionId"),
+            token: value("token"),
+          },
+          (response) => {
+            log("callback finish_session", response);
+          }
+        );
+      }
+    </script>
+  </body>
+</html>

@@ -15,12 +15,13 @@ const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "http://localhost:5000"],
     credentials: true,
   })
 );
 
 app.use(express.json());
+app.use(express.static("public"));
 
 app.get("/", (req, res) => {
   res.json({ message: "Quiz backend is running" });
@@ -28,14 +29,14 @@ app.get("/", (req, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/quizzes", quizRoutes);
-app.use("/", questionRoutes);
 app.use("/", sessionRoutes);
+app.use("/", questionRoutes);
 
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "http://localhost:5000"],
     methods: ["GET", "POST"],
   },
 });
