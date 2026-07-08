@@ -106,3 +106,29 @@ export type CreateQuestionResponse = {
   message: string;
   question: FullQuestion;
 };
+
+export type StartQuizSessionResponse = {
+  message: string;
+  session: QuizSession;
+};
+
+export type SessionParticipant = {
+  id: string;
+  sessionId: string;
+  userId: string | null;
+  nickname: string;
+  score: number;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type JoinSessionPayload = {
+  roomCode: string;
+  nickname: string;
+};
+
+export type JoinSessionResponse = {
+  message: string;
+  session: QuizSession;
+  participant: SessionParticipant;
+};
