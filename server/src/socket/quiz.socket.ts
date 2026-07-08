@@ -58,6 +58,31 @@ function getOrganizerRoom(sessionId: string) {
   return `organizer:${sessionId}`;
 }
 
+const questionTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function getQuestionTimerKey(sessionId: string, questionId: string) {
+  return `${sessionId}:${questionId}`;
+}
+
+function clearQuestionTimer(sessionId: string, questionId: string) {
+  const key = getQuestionTimerKey(sessionId, questionId);
+  const timer = questionTimers.get(key);
+
+  if (timer) {
+    clearTimeout(timer);
+    questionTimers.delete(key);
+  }
+}
+
+function clearSessionTimers(sessionId: string) {
+  for (const [key, timer] of questionTimers.entries()) {
+    if (key.startsWith(`${sessionId}:`)) {
+      clearTimeout(timer);
+      questionTimers.delete(key);
+    }
+  }
+}
+
 async function checkOrganizerAccess(token: string, sessionId: string) {
   const payload = verifyAccessToken(token);
 
@@ -139,6 +164,91 @@ async function emitLeaderboard(io: Server, sessionId: string) {
   });
 }
 
+async function finishQuestionByServer(
+  io: Server,
+  sessionId: string,
+  questionId: string,
+  reason: "manual" | "time_expired" | "session_finished" = "manual"
+) {
+  const sessionQuestion = await prisma.sessionQuestion.findFirst({
+    where: {
+      sessionId,
+      questionId,
+      status: SessionQuestionStatus.ACTIVE,
+    },
+    include: {
+      question: {
+        include: {
+          options: {
+            orderBy: {
+              order: "asc",
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!sessionQuestion) {
+    return null;
+  }
+
+  await prisma.sessionQuestion.update({
+    where: {
+      id: sessionQuestion.id,
+    },
+    data: {
+      status: SessionQuestionStatus.FINISHED,
+      finishedAt: new Date(),
+    },
+  });
+
+  clearQuestionTimer(sessionId, questionId);
+
+  const correctOptions = sessionQuestion.question.options
+    .filter((option) => option.isCorrect)
+    .map((option) => ({
+      id: option.id,
+      text: option.text,
+      imageUrl: option.imageUrl,
+      order: option.order,
+    }));
+
+  io.to(getSessionRoom(sessionId)).emit("question_finished", {
+    sessionId,
+    questionId,
+    reason,
+    correctOptions,
+  });
+
+  await emitLeaderboard(io, sessionId);
+
+  return {
+    sessionQuestionId: sessionQuestion.id,
+    questionId,
+    reason,
+  };
+}
+
+function scheduleQuestionTimer(
+  io: Server,
+  sessionId: string,
+  questionId: string,
+  timeLimitSeconds: number
+) {
+  clearQuestionTimer(sessionId, questionId);
+
+  const timer = setTimeout(async () => {
+    try {
+      await finishQuestionByServer(io, sessionId, questionId, "time_expired");
+    } catch (error) {
+      console.error("Failed to auto-finish question:", error);
+    }
+  }, timeLimitSeconds * 1000);
+
+  questionTimers.set(getQuestionTimerKey(sessionId, questionId), timer);
+}
+
 async function getPublicQuestion(sessionQuestionId: string) {
   const sessionQuestion = await prisma.sessionQuestion.findUnique({
     where: {
@@ -147,6 +257,12 @@ async function getPublicQuestion(sessionQuestionId: string) {
     include: {
       question: {
         include: {
+          quiz: {
+            select: {
+              defaultTimeLimitSeconds: true,
+              pointsPerQuestion: true,
+            },
+          },
           options: {
             orderBy: {
               order: "asc",
@@ -167,6 +283,14 @@ async function getPublicQuestion(sessionQuestionId: string) {
     return null;
   }
 
+  const effectiveTimeLimitSeconds =
+    sessionQuestion.question.timeLimitSeconds ??
+    sessionQuestion.question.quiz.defaultTimeLimitSeconds;
+
+  const effectivePoints =
+    sessionQuestion.question.points ??
+    sessionQuestion.question.quiz.pointsPerQuestion;
+
   return {
     sessionQuestionId: sessionQuestion.id,
     status: sessionQuestion.status,
@@ -178,8 +302,8 @@ async function getPublicQuestion(sessionQuestionId: string) {
       imageUrl: sessionQuestion.question.imageUrl,
       type: sessionQuestion.question.type,
       order: sessionQuestion.question.order,
-      timeLimitSeconds: sessionQuestion.question.timeLimitSeconds,
-      points: sessionQuestion.question.points,
+      timeLimitSeconds: effectiveTimeLimitSeconds,
+      points: effectivePoints,
       options: sessionQuestion.question.options,
     },
   };
@@ -424,26 +548,43 @@ export function registerQuizSocket(io: Server) {
           return;
         }
 
+        const startedAt = new Date();
+
         const startedSessionQuestion = await prisma.sessionQuestion.update({
           where: {
             id: sessionQuestion.id,
           },
           data: {
             status: SessionQuestionStatus.ACTIVE,
-            startedAt: new Date(),
+            startedAt,
           },
         });
 
         const publicQuestion = await getPublicQuestion(startedSessionQuestion.id);
 
+        if (!publicQuestion) {
+          callback?.({
+            ok: false,
+            message: "Question not found after start",
+          });
+          return;
+        }
+
+        const timeLimitSeconds = publicQuestion.question.timeLimitSeconds;
+        const expiresAt = new Date(startedAt.getTime() + timeLimitSeconds * 1000);
+
+        scheduleQuestionTimer(io, sessionId, publicQuestion.question.id, timeLimitSeconds);
+
         io.to(getSessionRoom(sessionId)).emit("question_started", {
           sessionId,
           ...publicQuestion,
+          expiresAt,
         });
 
         callback?.({
           ok: true,
           question: publicQuestion,
+          expiresAt,
         });
       } catch (error) {
         callback?.({
@@ -506,6 +647,33 @@ export function registerQuizSocket(io: Server) {
           return;
         }
 
+        const startedAt = sessionQuestion.startedAt;
+
+        if (!startedAt) {
+          callback?.({
+            ok: false,
+            message: "Question has not started",
+          });
+          return;
+        }
+
+        const question = sessionQuestion.question;
+
+        const timeLimitSeconds =
+          question.timeLimitSeconds ?? question.quiz.defaultTimeLimitSeconds;
+
+        const expiresAt = startedAt.getTime() + timeLimitSeconds * 1000;
+
+        if (Date.now() > expiresAt) {
+          await finishQuestionByServer(io, sessionId, questionId, "time_expired");
+
+          callback?.({
+            ok: false,
+            message: "Time is over",
+          });
+          return;
+        }
+
         if (!sessionQuestion.startedAt) {
           callback?.({
             ok: false,
@@ -529,8 +697,6 @@ export function registerQuizSocket(io: Server) {
           });
           return;
         }
-
-        const question = sessionQuestion.question;
 
         const uniqueSelectedOptionIds = [...new Set(selectedOptionIds)];
 
@@ -651,59 +817,20 @@ export function registerQuizSocket(io: Server) {
 
           await checkOrganizerAccess(token, sessionId);
 
-          const sessionQuestion = await prisma.sessionQuestion.findFirst({
-            where: {
-              sessionId,
-              questionId,
-              status: SessionQuestionStatus.ACTIVE,
-            },
-            include: {
-              question: {
-                include: {
-                  options: {
-                    orderBy: {
-                      order: "asc",
-                    },
-                  },
-                },
-              },
-            },
-          });
+          const result = await finishQuestionByServer(
+            io,
+            sessionId,
+            questionId,
+            "manual"
+          );
 
-          if (!sessionQuestion) {
+          if (!result) {
             callback?.({
               ok: false,
               message: "Active question not found",
             });
             return;
           }
-
-          await prisma.sessionQuestion.update({
-            where: {
-              id: sessionQuestion.id,
-            },
-            data: {
-              status: SessionQuestionStatus.FINISHED,
-              finishedAt: new Date(),
-            },
-          });
-
-          const correctOptions = sessionQuestion.question.options
-            .filter((option) => option.isCorrect)
-            .map((option) => ({
-              id: option.id,
-              text: option.text,
-              imageUrl: option.imageUrl,
-              order: option.order,
-            }));
-
-          io.to(getSessionRoom(sessionId)).emit("question_finished", {
-            sessionId,
-            questionId,
-            correctOptions,
-          });
-
-          await emitLeaderboard(io, sessionId);
 
           callback?.({
             ok: true,
@@ -728,6 +855,8 @@ export function registerQuizSocket(io: Server) {
           const { sessionId, token } = payload;
 
           await checkOrganizerAccess(token, sessionId);
+          
+          clearSessionTimers(sessionId);
 
           const updatedSession = await prisma.quizSession.update({
             where: {

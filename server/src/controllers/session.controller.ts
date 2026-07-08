@@ -2,6 +2,7 @@ import type { RequestHandler } from "express";
 import { SessionStatus, UserRole } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import type { Request, Response } from "express";
 
 const joinSessionSchema = z.object({
   roomCode: z.string().trim().min(4).max(12),
@@ -336,3 +337,89 @@ export const getSessionResults: RequestHandler = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
+export async function getMyOrganizedSessions(req: Request, res: Response) {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Unauthorized",
+      });
+      return;
+    }
+
+    const sessions = await prisma.quizSession.findMany({
+      where: {
+        quiz: {
+          organizerId: userId,
+        },
+      },
+      include: {
+        quiz: {
+          select: {
+            id: true,
+            title: true,
+          },
+        },
+        participants: {
+          select: {
+            id: true,
+            nickname: true,
+            score: true,
+          },
+        },
+        questions: {
+          select: {
+            id: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    const formattedSessions = sessions.map((session) => {
+      const sortedParticipants = [...session.participants].sort((a, b) => {
+        if (b.score !== a.score) {
+          return b.score - a.score;
+        }
+
+        return a.nickname.localeCompare(b.nickname);
+      });
+
+      const winner = sortedParticipants[0] ?? null;
+
+      const averageScore =
+        sortedParticipants.length > 0
+          ? sortedParticipants.reduce(
+              (sum, participant) => sum + participant.score,
+              0
+            ) / sortedParticipants.length
+          : 0;
+
+      return {
+        id: session.id,
+        roomCode: session.roomCode,
+        status: session.status,
+        createdAt: session.createdAt,
+        startedAt: session.startedAt,
+        finishedAt: session.finishedAt,
+        quiz: session.quiz,
+        participantsCount: session.participants.length,
+        questionsCount: session.questions.length,
+        averageScore,
+        winner,
+      };
+    });
+
+    res.json({
+      sessions: formattedSessions,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to get organized sessions",
+    });
+  }
+}
