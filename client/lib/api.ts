@@ -1,8 +1,34 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+export const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 
 type ApiFetchOptions = RequestInit & {
   auth?: boolean;
 };
+
+function applyCustomHeaders(
+  target: Record<string, string>,
+  headers?: HeadersInit
+) {
+  if (!headers) {
+    return;
+  }
+
+  if (headers instanceof Headers) {
+    headers.forEach((value, key) => {
+      target[key] = value;
+    });
+    return;
+  }
+
+  if (Array.isArray(headers)) {
+    headers.forEach(([key, value]) => {
+      target[key] = value;
+    });
+    return;
+  }
+
+  Object.assign(target, headers);
+}
 
 export async function apiFetch<T>(
   path: string,
@@ -10,13 +36,16 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const { auth = false, headers, ...restOptions } = options;
 
-  const requestHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
+  const isFormData =
+    typeof FormData !== "undefined" && restOptions.body instanceof FormData;
 
-  if (headers) {
-    Object.assign(requestHeaders, headers);
+  const requestHeaders: Record<string, string> = {};
+
+  if (!isFormData) {
+    requestHeaders["Content-Type"] = "application/json";
   }
+
+  applyCustomHeaders(requestHeaders, headers);
 
   if (auth && typeof window !== "undefined") {
     const token = localStorage.getItem("quizflow_token");
@@ -38,4 +67,16 @@ export async function apiFetch<T>(
   }
 
   return data as T;
+}
+
+export function getBackendFileUrl(path: string | null | undefined) {
+  if (!path) {
+    return "";
+  }
+
+  if (path.startsWith("http")) {
+    return path;
+  }
+
+  return `${API_URL}${path}`;
 }

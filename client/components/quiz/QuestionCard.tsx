@@ -1,4 +1,5 @@
 import { CheckCircle2, Circle, Trash2 } from "lucide-react";
+import { getBackendFileUrl } from "@/lib/api";
 import type { FullQuestion } from "@/types/quiz";
 
 type QuestionCardProps = {
@@ -44,6 +45,14 @@ export function QuestionCard({ question, onDelete }: QuestionCardProps) {
           <h3 className="text-xl font-black tracking-tight text-slate-900">
             {question.text || "Вопрос без текста"}
           </h3>
+
+          {question.imageUrl && (
+            <img
+                src={getBackendFileUrl(question.imageUrl)}
+                alt="Изображение вопроса"
+                className="mt-4 max-h-72 w-full rounded-2xl object-cover"
+            />
+            )}
         </div>
 
         <button

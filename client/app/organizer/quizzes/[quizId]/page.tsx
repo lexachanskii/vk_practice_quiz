@@ -1,5 +1,6 @@
 "use client";
 
+import { uploadQuestionImage } from "@/lib/uploads";
 import { FormEvent, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Plus, RefreshCw } from "lucide-react";
@@ -34,6 +35,10 @@ export default function QuizDetailsPage() {
     useState<QuestionType>("SINGLE_CHOICE");
   const [timeLimitSeconds, setTimeLimitSeconds] = useState(10);
   const [points, setPoints] = useState(100);
+
+  const [questionImageFile, setQuestionImageFile] = useState<File | null>(null);
+  const [questionImagePreview, setQuestionImagePreview] = useState("");
+  
   const [options, setOptions] = useState<DraftOption[]>([
     { text: "Правильный ответ", isCorrect: true },
     { text: "Неправильный ответ", isCorrect: false },
@@ -133,11 +138,24 @@ export default function QuizDetailsPage() {
     setQuestionText("Тестовый вопрос");
     setQuestionType("SINGLE_CHOICE");
     setTimeLimitSeconds(10);
-    setPoints(100);
+    setPoints(100);    
+    setQuestionImageFile(null);
+    setQuestionImagePreview("");
     setOptions([
       { text: "Правильный ответ", isCorrect: true },
       { text: "Неправильный ответ", isCorrect: false },
     ]);
+  }
+
+  function handleQuestionImageChange(file: File | null) {
+    setQuestionImageFile(file);
+
+    if (!file) {
+      setQuestionImagePreview("");
+      return;
+    }
+
+    setQuestionImagePreview(URL.createObjectURL(file));
   }
 
   async function handleCreateQuestion(event: FormEvent<HTMLFormElement>) {
@@ -152,9 +170,9 @@ export default function QuizDetailsPage() {
       }))
       .filter((option) => option.text.length > 0);
 
-    if (!questionText.trim()) {
-      setError("Введите текст вопроса");
-      return;
+    if (!questionText.trim() && !questionImageFile) {
+        setError("Введите текст вопроса или выберите изображение");
+        return;
     }
 
     if (preparedOptions.length < 2) {
@@ -179,16 +197,23 @@ export default function QuizDetailsPage() {
     setIsSubmitting(true);
 
     try {
-      await createQuestion(quizId, {
-        text: questionText.trim(),
-        type: questionType,
-        timeLimitSeconds,
-        points,
-        options: preparedOptions,
-      });
+        let uploadedImageUrl: string | undefined;
 
-      resetQuestionForm();
-      await loadQuiz();
+        if (questionImageFile) {
+            uploadedImageUrl = await uploadQuestionImage(questionImageFile);
+        }
+
+        await createQuestion(quizId, {
+            text: questionText.trim() || undefined,
+            imageUrl: uploadedImageUrl,
+            type: questionType,
+            timeLimitSeconds,
+            points,
+            options: preparedOptions,
+        });
+
+        resetQuestionForm();
+        await loadQuiz();
     } catch (error) {
       setError(error instanceof Error ? error.message : "Не удалось создать вопрос");
     } finally {
@@ -322,11 +347,44 @@ export default function QuizDetailsPage() {
 
               <form onSubmit={handleCreateQuestion} className="flex flex-col gap-5">
                 <AppInput
-                  label="Текст вопроса"
-                  value={questionText}
-                  onChange={(event) => setQuestionText(event.target.value)}
-                  required
+                    label="Текст вопроса"
+                    value={questionText}
+                    onChange={(event) => setQuestionText(event.target.value)}
+                    placeholder="Можно оставить пустым, если вопрос будет только с изображением"
                 />
+
+                    <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold text-slate-700">
+                        Изображение вопроса
+                    </label>
+
+                    <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
+                        onChange={(event) =>
+                        handleQuestionImageChange(event.target.files?.[0] ?? null)
+                        }
+                        className="w-full rounded-xl border-2 border-dashed border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-bold file:text-indigo-600 hover:border-indigo-300"
+                    />
+
+                    {questionImagePreview && (
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <img
+                            src={questionImagePreview}
+                            alt="Предпросмотр изображения вопроса"
+                            className="max-h-72 w-full rounded-xl object-cover"
+                        />
+
+                        <button
+                            type="button"
+                            onClick={() => handleQuestionImageChange(null)}
+                            className="mt-3 rounded-xl bg-rose-50 px-4 py-2 text-sm font-bold text-rose-600 transition-colors hover:bg-rose-100"
+                        >
+                            Убрать изображение
+                        </button>
+                       </div>
+                    )}
+                </div>
 
                 <div className="grid gap-5 md:grid-cols-3">
                   <div className="flex flex-col gap-1.5">
