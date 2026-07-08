@@ -35,7 +35,7 @@ export default function RegisterPage() {
       if (data.user.role === "ORGANIZER") {
         router.push("/organizer");
       } else {
-        router.push("/join");
+        router.push("/participant");
       }
     } catch (error) {
       setError(error instanceof Error ? error.message : "Ошибка регистрации");

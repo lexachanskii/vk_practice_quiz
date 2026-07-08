@@ -132,3 +132,29 @@ export type JoinSessionResponse = {
   session: QuizSession;
   participant: SessionParticipant;
 };
+
+export type ParticipantHistoryItem = {
+  id: string;
+  nickname: string;
+  score: number;
+  place: number | null;
+  correctAnswersCount: number;
+  totalAnswersCount: number;
+  session: {
+    id: string;
+    roomCode: string;
+    status: "WAITING" | "ACTIVE" | "FINISHED" | "CANCELLED";
+    createdAt: string;
+    startedAt: string | null;
+    finishedAt: string | null;
+    quiz: {
+      id: string;
+      title: string;
+    };
+    questionsCount: number;
+  };
+};
+
+export type ParticipantHistoryResponse = {
+  participations: ParticipantHistoryItem[];
+};

@@ -3,6 +3,7 @@ import type {
   JoinSessionPayload,
   JoinSessionResponse,
   OrganizerSessionsResponse,
+  ParticipantHistoryResponse,
   QuizSession,
   SessionParticipant,
   StartQuizSessionResponse,
@@ -29,6 +30,7 @@ export async function joinQuizSession(payload: JoinSessionPayload) {
     JoinSessionResponse | { session: QuizSession; participant: SessionParticipant }
   >("/sessions/join", {
     method: "POST",
+    auth: true,
     body: JSON.stringify(payload),
   });
 
@@ -48,4 +50,16 @@ export async function getMyOrganizedSessions() {
   );
 
   return data.sessions;
+}
+
+export async function getMyParticipations() {
+  const data = await apiFetch<ParticipantHistoryResponse>(
+    "/sessions/my-participations",
+    {
+      method: "GET",
+      auth: true,
+    }
+  );
+
+  return data.participations;
 }
