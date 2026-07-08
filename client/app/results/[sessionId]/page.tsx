@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   Medal,
@@ -13,28 +13,65 @@ import {
 } from "lucide-react";
 import { AppButton } from "@/components/ui/AppButton";
 import { Logo } from "@/components/layout/Logo";
-import { clearAuth, getCurrentUser, getToken } from "@/lib/auth";
+import { getToken } from "@/lib/auth";
 import { getSessionResults } from "@/lib/results";
-import type { SessionResultsResponse } from "@/types/quiz";
+import { getSavedParticipantResults } from "@/lib/participant";
+import type {
+  SessionResultsLeaderboardItem,
+  SessionResultsResponse,
+} from "@/types/quiz";
 
 export default function ResultsPage() {
-  const router = useRouter();
   const params = useParams();
-
   const sessionId = String(params.sessionId);
 
   const [results, setResults] = useState<SessionResultsResponse | null>(null);
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isLoadingResults, setIsLoadingResults] = useState(false);
+  const [isLoadingResults, setIsLoadingResults] = useState(true);
   const [error, setError] = useState("");
 
   async function loadResults() {
     setError("");
     setIsLoadingResults(true);
 
+    const token = getToken();
+
     try {
-      const data = await getSessionResults(sessionId);
-      setResults(data);
+      if (token) {
+        const data = await getSessionResults(sessionId);
+        setResults(data);
+        return;
+      }
+
+      const savedResults = getSavedParticipantResults(sessionId);
+
+      if (!savedResults) {
+        setResults(null);
+        setError(
+          "Результаты не найдены. Откройте их после завершения квиза или войдите как организатор."
+        );
+        return;
+      }
+
+      const leaderboard: SessionResultsLeaderboardItem[] =
+        savedResults.leaderboard.map((item) => ({
+          place: item.place,
+          id: item.id,
+          nickname: item.nickname,
+          score: item.score,
+          correctAnswersCount: item.correctAnswersCount,
+          totalAnswersCount: item.totalAnswersCount,
+        }));
+
+      setResults({
+        leaderboard,
+        winner: leaderboard[0] ?? null,
+        participantsCount: leaderboard.length,
+        averageScore:
+          leaderboard.length > 0
+            ? leaderboard.reduce((sum, item) => sum + item.score, 0) /
+              leaderboard.length
+            : 0,
+      });
     } catch (error) {
       setError(
         error instanceof Error
@@ -47,43 +84,8 @@ export default function ResultsPage() {
   }
 
   useEffect(() => {
-    async function checkAuth() {
-      const token = getToken();
-
-      if (!token) {
-        router.replace("/login");
-        return;
-      }
-
-      try {
-        const user = await getCurrentUser();
-
-        if (user.role !== "ORGANIZER") {
-          router.replace("/join");
-          return;
-        }
-
-        await loadResults();
-      } catch {
-        clearAuth();
-        router.replace("/login");
-      } finally {
-        setIsCheckingAuth(false);
-      }
-    }
-
-    checkAuth();
-  }, [router, sessionId]);
-
-  if (isCheckingAuth) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
-          <p className="font-bold text-slate-700">Проверяем авторизацию...</p>
-        </div>
-      </main>
-    );
-  }
+    loadResults();
+  }, [sessionId]);
 
   const leaderboard = results?.leaderboard ?? [];
   const winner = results?.winner ?? leaderboard[0] ?? null;
@@ -108,9 +110,9 @@ export default function ResultsPage() {
           <Logo />
 
           <div className="flex gap-3">
-            <AppButton href="/organizer" variant="secondary" size="sm">
+            <AppButton href="/" variant="secondary" size="sm">
               <ArrowLeft size={16} />
-              Кабинет
+              Главная
             </AppButton>
 
             <AppButton
@@ -134,9 +136,7 @@ export default function ResultsPage() {
 
         {isLoadingResults && !results ? (
           <section className="rounded-3xl bg-white p-8 text-center shadow-sm">
-            <p className="font-bold text-slate-700">
-              Загружаем результаты...
-            </p>
+            <p className="font-bold text-slate-700">Загружаем результаты...</p>
           </section>
         ) : !results ? (
           <section className="rounded-3xl bg-white p-8 text-center shadow-sm">
@@ -145,12 +145,17 @@ export default function ResultsPage() {
             </h1>
 
             <p className="mb-6 text-slate-500">
-              Возможно, сессия ещё не завершена или указан неверный sessionId.
+              Участник может открыть результаты после завершения квиза.
+              Организатор может войти в аккаунт и открыть результаты по sessionId.
             </p>
 
-            <AppButton href="/organizer" variant="secondary">
-              Вернуться в кабинет
-            </AppButton>
+            <div className="flex justify-center gap-3">
+              <AppButton href="/join" variant="secondary">
+                Войти по коду
+              </AppButton>
+
+              <AppButton href="/login">Войти как организатор</AppButton>
+            </div>
           </section>
         ) : (
           <>

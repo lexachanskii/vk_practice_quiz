@@ -51,3 +51,52 @@ export function clearParticipantSession() {
   localStorage.removeItem(PARTICIPANT_KEY);
   localStorage.removeItem(PARTICIPANT_SESSION_KEY);
 }
+
+import type { LeaderboardItem } from "@/types/socket";
+
+const PARTICIPANT_RESULTS_KEY = "quizflow_participant_results";
+
+export type SavedParticipantResults = {
+  sessionId: string;
+  leaderboard: LeaderboardItem[];
+  finishedAt: string;
+};
+
+export function saveParticipantResults(
+  sessionId: string,
+  leaderboard: LeaderboardItem[]
+) {
+  const data: SavedParticipantResults = {
+    sessionId,
+    leaderboard,
+    finishedAt: new Date().toISOString(),
+  };
+
+  localStorage.setItem(PARTICIPANT_RESULTS_KEY, JSON.stringify(data));
+}
+
+export function getSavedParticipantResults(
+  sessionId: string
+): SavedParticipantResults | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const rawData = localStorage.getItem(PARTICIPANT_RESULTS_KEY);
+
+  if (!rawData) {
+    return null;
+  }
+
+  try {
+    const data = JSON.parse(rawData) as SavedParticipantResults;
+
+    if (data.sessionId !== sessionId) {
+      return null;
+    }
+
+    return data;
+  } catch {
+    return null;
+  }
+}

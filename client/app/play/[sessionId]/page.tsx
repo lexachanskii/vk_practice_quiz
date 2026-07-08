@@ -22,6 +22,7 @@ import {
   clearParticipantSession,
   getSavedParticipant,
   getSavedParticipantSession,
+  saveParticipantResults,
 } from "@/lib/participant";
 import type { QuizSession, SessionParticipant } from "@/types/quiz";
 import type {
@@ -42,14 +43,10 @@ export default function PlayPage() {
 
   const socketRef = useRef<Socket | null>(null);
 
-  const [participant, setParticipant] = useState<SessionParticipant | null>(() =>
-    getSavedParticipant()
-  );
+  const [participant, setParticipant] = useState<SessionParticipant | null>(null);
+  const [session, setSession] = useState<QuizSession | null>(null);
+  const [isStorageChecked, setIsStorageChecked] = useState(false);
 
-  const [session, setSession] = useState<QuizSession | null>(() =>
-    getSavedParticipantSession()
-  );
-  
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState("");
 
@@ -66,23 +63,30 @@ export default function PlayPage() {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [isSessionFinished, setIsSessionFinished] = useState(false);
 
-  useEffect(() => {
-    const savedParticipant = getSavedParticipant();
-    const savedSession = getSavedParticipantSession();
+    useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+        const savedParticipant = getSavedParticipant();
+        const savedSession = getSavedParticipantSession();
 
-    if (!savedParticipant || !savedSession) {
-      router.replace("/join");
-      return;
-    }
+        if (!savedParticipant || !savedSession) {
+        router.replace("/join");
+        return;
+        }
 
-    if (savedSession.id !== sessionId) {
-      router.replace("/join");
-      return;
-    }
+        if (savedSession.id !== sessionId) {
+        router.replace("/join");
+        return;
+        }
 
-    setParticipant(savedParticipant);
-    setSession(savedSession);
-  }, [router, sessionId]);
+        setParticipant(savedParticipant);
+        setSession(savedSession);
+        setIsStorageChecked(true);
+    }, 0);
+
+    return () => {
+        window.clearTimeout(timeoutId);
+    };
+    }, [router, sessionId]);
 
   useEffect(() => {
     if (!participant || !session) {
@@ -165,12 +169,15 @@ export default function PlayPage() {
     });
 
     socket.on("session_finished", (payload: SessionFinishedPayload) => {
-      setIsSessionFinished(true);
-      setSession(payload.session);
-      setLeaderboard(payload.leaderboard);
-      setCurrentQuestion(null);
-      setSecondsLeft(null);
+        setIsSessionFinished(true);
+        setSession(payload.session);
+        setLeaderboard(payload.leaderboard);
+        setCurrentQuestion(null);
+        setSecondsLeft(null);
+
+        saveParticipantResults(session.id, payload.leaderboard);
     });
+
 
     socket.connect();
 
@@ -278,7 +285,7 @@ export default function PlayPage() {
     );
   }
 
-  if (!participant || !session) {
+  if (!isStorageChecked || !participant || !session) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="rounded-3xl bg-white p-8 text-center shadow-sm">
@@ -380,6 +387,12 @@ export default function PlayPage() {
             </div>
 
             <LeaderboardList leaderboard={leaderboard} participantId={participant.id} />
+            <div className="mt-8 flex justify-center">
+                <AppButton href={`/results/${sessionId}`} size="lg">
+                    <Trophy size={18} />
+                    Открыть результаты
+                </AppButton>
+            </div>
           </section>
         ) : currentQuestion ? (
           <section className="rounded-3xl bg-white p-8 shadow-sm">
