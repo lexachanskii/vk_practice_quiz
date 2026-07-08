@@ -423,3 +423,109 @@ export async function getMyOrganizedSessions(req: Request, res: Response) {
     });
   }
 }
+
+export async function getMyParticipations(req: Request, res: Response) {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        message: "Unauthorized",
+      });
+      return;
+    }
+
+    const participations = await prisma.sessionParticipant.findMany({
+      where: {
+        userId,
+      },
+      include: {
+        answers: {
+          select: {
+            id: true,
+            isCorrect: true,
+            pointsAwarded: true,
+            questionId: true,
+          },
+        },
+        session: {
+          include: {
+            quiz: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+            questions: {
+              select: {
+                id: true,
+              },
+            },
+            participants: {
+              select: {
+                id: true,
+                nickname: true,
+                score: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        joinedAt: "desc",
+      },
+    });
+
+    const formattedParticipations = participations.map((participation) => {
+      const leaderboard = [...participation.session.participants]
+        .sort((a, b) => {
+          if (b.score !== a.score) {
+            return b.score - a.score;
+          }
+
+          return a.nickname.localeCompare(b.nickname);
+        })
+        .map((participant, index) => ({
+          place: index + 1,
+          id: participant.id,
+          nickname: participant.nickname,
+          score: participant.score,
+        }));
+
+      const currentParticipantInLeaderboard = leaderboard.find(
+        (item) => item.id === participation.id
+      );
+
+      const correctAnswersCount = participation.answers.filter(
+        (answer) => answer.isCorrect
+      ).length;
+
+      return {
+        id: participation.id,
+        nickname: participation.nickname,
+        score: participation.score,
+        place: currentParticipantInLeaderboard?.place ?? null,
+        correctAnswersCount,
+        totalAnswersCount: participation.answers.length,
+        session: {
+          id: participation.session.id,
+          roomCode: participation.session.roomCode,
+          status: participation.session.status,
+          createdAt: participation.session.createdAt,
+          startedAt: participation.session.startedAt,
+          finishedAt: participation.session.finishedAt,
+          quiz: participation.session.quiz,
+          questionsCount: participation.session.questions.length,
+        },
+      };
+    });
+
+    res.json({
+      participations: formattedParticipations,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to get participations",
+    });
+  }
+}

@@ -5,6 +5,7 @@ import {
   joinSession,
   startQuizSession,
   getMyOrganizedSessions,
+  getMyParticipations,
 } from "../controllers/session.controller";
 import { authMiddleware } from "../middlewares/auth.middleware";
 import { optionalAuthMiddleware } from "../middlewares/optional-auth.middleware";
@@ -20,6 +21,13 @@ router.post(
 );
 
 router.post("/sessions/join", optionalAuthMiddleware, joinSession);
+
+router.get(
+  "/sessions/my-participations",
+  authMiddleware,
+  roleMiddleware([UserRole.PARTICIPANT]),
+  getMyParticipations
+);
 
 router.get("/sessions/:id/results", getSessionResults);
 
