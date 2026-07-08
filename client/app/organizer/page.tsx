@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut, Plus, RefreshCw, User } from "lucide-react";
+import { History, LogOut, Plus, RefreshCw, User } from "lucide-react";
 import { AppButton } from "@/components/ui/AppButton";
 import { Logo } from "@/components/layout/Logo";
 import { QuizCard } from "@/components/quiz/QuizCard";
@@ -147,6 +147,11 @@ export default function OrganizerPage() {
               >
                 <RefreshCw size={18} />
                 Обновить
+              </AppButton>
+
+              <AppButton href="/organizer/history" variant="secondary" size="lg">
+                <History size={18} />
+                История
               </AppButton>
 
               <AppButton href="/organizer/quizzes/new" size="lg">

@@ -2,6 +2,7 @@ import { apiFetch } from "@/lib/api";
 import type {
   JoinSessionPayload,
   JoinSessionResponse,
+  OrganizerSessionsResponse,
   QuizSession,
   SessionParticipant,
   StartQuizSessionResponse,
@@ -35,4 +36,16 @@ export async function joinQuizSession(payload: JoinSessionPayload) {
     session: data.session,
     participant: data.participant,
   };
+}
+
+export async function getMyOrganizedSessions() {
+  const data = await apiFetch<OrganizerSessionsResponse>(
+    "/sessions/my-organized",
+    {
+      method: "GET",
+      auth: true,
+    }
+  );
+
+  return data.sessions;
 }
