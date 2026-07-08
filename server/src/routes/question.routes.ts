@@ -10,11 +10,25 @@ import { roleMiddleware } from "../middlewares/role.middleware";
 
 const router = Router();
 
-router.use(authMiddleware);
-router.use(roleMiddleware([UserRole.ORGANIZER]));
+router.post(
+  "/quizzes/:quizId/questions",
+  authMiddleware,
+  roleMiddleware([UserRole.ORGANIZER]),
+  createQuestion
+);
 
-router.post("/quizzes/:quizId/questions", createQuestion);
-router.patch("/questions/:id", updateQuestion);
-router.delete("/questions/:id", deleteQuestion);
+router.patch(
+  "/questions/:id",
+  authMiddleware,
+  roleMiddleware([UserRole.ORGANIZER]),
+  updateQuestion
+);
+
+router.delete(
+  "/questions/:id",
+  authMiddleware,
+  roleMiddleware([UserRole.ORGANIZER]),
+  deleteQuestion
+);
 
 export default router;
