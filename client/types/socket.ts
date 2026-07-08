@@ -75,3 +75,26 @@ export type SocketCallback<T = unknown> = (response: {
   message?: string;
 } & T) => void;
 
+import type { SessionParticipant } from "@/types/quiz";
+
+export type ParticipantJoinedPayload = {
+  sessionId: string;
+  participant: Pick<SessionParticipant, "id" | "nickname" | "score">;
+};
+
+export type SessionStartedPayload = {
+  session: {
+    id: string;
+    roomCode: string;
+    status: "WAITING" | "ACTIVE" | "FINISHED" | "CANCELLED";
+    startedAt?: string | null;
+    finishedAt?: string | null;
+  };
+};
+
+export type AnswerReceivedPayload = {
+  sessionId: string;
+  participantId: string;
+  questionId: string;
+  isCorrect: boolean;
+};
