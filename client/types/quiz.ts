@@ -43,3 +43,66 @@ export type Quiz = {
 export type MyQuizzesResponse = {
   quizzes: Quiz[];
 };
+
+export type CreateQuizPayload = {
+  title: string;
+  description?: string;
+  defaultTimeLimitSeconds: number;
+  pointsPerQuestion: number;
+  categories: string[];
+};
+
+export type CreateQuizResponse = {
+  message: string;
+  quiz: Quiz;
+};
+
+export type AnswerOption = {
+  id: string;
+  text: string | null;
+  imageUrl: string | null;
+  order: number;
+  isCorrect: boolean;
+};
+
+export type QuestionType = "SINGLE_CHOICE" | "MULTIPLE_CHOICE";
+
+export type FullQuestion = {
+  id: string;
+  quizId: string;
+  text: string | null;
+  imageUrl: string | null;
+  type: QuestionType;
+  order: number;
+  timeLimitSeconds: number | null;
+  points: number | null;
+  options: AnswerOption[];
+};
+
+export type FullQuiz = Omit<Quiz, "questions"> & {
+  questions: FullQuestion[];
+};
+
+export type GetQuizResponse = {
+  quiz: FullQuiz;
+};
+
+export type CreateQuestionOptionPayload = {
+  text?: string;
+  imageUrl?: string;
+  isCorrect: boolean;
+};
+
+export type CreateQuestionPayload = {
+  text?: string;
+  imageUrl?: string;
+  type: QuestionType;
+  timeLimitSeconds?: number;
+  points?: number;
+  options: CreateQuestionOptionPayload[];
+};
+
+export type CreateQuestionResponse = {
+  message: string;
+  question: FullQuestion;
+};
