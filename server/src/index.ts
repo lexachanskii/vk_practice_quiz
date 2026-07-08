@@ -9,6 +9,7 @@ import quizRoutes from "./routes/quiz.routes";
 import questionRoutes from "./routes/question.routes";
 import sessionRoutes from "./routes/session.routes";
 import { registerQuizSocket } from "./socket/quiz.socket";
+import uploadRoutes from "./routes/upload.routes";
 
 dotenv.config();
 
@@ -37,6 +38,7 @@ app.get("/", (req, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/quizzes", quizRoutes);
+app.use("/uploads", uploadRoutes);
 app.use("/", sessionRoutes);
 app.use("/", questionRoutes);
 
