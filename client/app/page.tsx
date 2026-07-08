@@ -1,65 +1,103 @@
-import Image from "next/image";
+import { Play, Plus, Trophy, Users } from "lucide-react";
+import { PublicHeader } from "@/components/layout/PublicHeader";
+import { AppButton } from "@/components/ui/AppButton";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-slate-100">
+      <PublicHeader />
+
+      <section className="mx-auto flex min-h-screen max-w-6xl items-center px-8 pt-24">
+        <div className="grid w-full gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div>
+            <div className="mb-7 inline-flex items-center gap-2 rounded-full bg-indigo-100 px-3.5 py-1.5 text-xs font-black uppercase tracking-widest text-indigo-700">
+              Real-time quiz platform
+            </div>
+
+            <h1 className="mb-6 max-w-3xl text-5xl font-black leading-tight tracking-tight text-slate-950">
+              Создавайте квизы и проводите их в реальном времени
+            </h1>
+
+            <p className="mb-8 max-w-2xl text-lg leading-8 text-slate-600">
+              Организатор создаёт вопросы, запускает комнату, участники
+              подключаются по коду, отвечают во время показа вопроса и сразу
+              видят лидерборд.
+            </p>
+
+            <div className="flex flex-wrap gap-3">
+              <AppButton href="/register" size="lg">
+                <Plus size={18} />
+                Создать квиз
+              </AppButton>
+
+              <AppButton href="/join" variant="secondary" size="lg">
+                <Play size={18} />
+                Войти по коду
+              </AppButton>
+
+              <AppButton href="/figma-preview" variant="ghost" size="lg">
+                Figma preview
+              </AppButton>
+            </div>
+          </div>
+
+          <div className="rounded-[2rem] border border-white bg-white/80 p-6 shadow-xl backdrop-blur">
+            <div className="rounded-[1.5rem] bg-slate-950 p-6 text-white">
+              <div className="mb-6 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-widest text-white/40">
+                    Комната
+                  </p>
+                  <p className="text-3xl font-black tracking-widest">ABCD12</p>
+                </div>
+
+                <div className="rounded-2xl bg-emerald-500/20 px-4 py-2 text-sm font-bold text-emerald-300">
+                  LIVE
+                </div>
+              </div>
+
+              <div className="mb-4 rounded-2xl bg-white/10 p-4">
+                <p className="mb-2 text-xs font-black uppercase tracking-widest text-white/40">
+                  Текущий вопрос
+                </p>
+                <h2 className="text-xl font-black">
+                  Какой алгоритм имеет сложность O(n log n)?
+                </h2>
+              </div>
+
+              <div className="grid gap-3">
+                <div className="rounded-2xl bg-white/10 p-4 font-semibold">
+                  Пузырьковая сортировка
+                </div>
+                <div className="rounded-2xl bg-indigo-500 p-4 font-semibold">
+                  Быстрая сортировка
+                </div>
+                <div className="rounded-2xl bg-white/10 p-4 font-semibold">
+                  Сортировка вставками
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-4">
+              <div className="rounded-2xl bg-indigo-50 p-4">
+                <Users className="mb-2 text-indigo-600" size={22} />
+                <p className="text-2xl font-black text-slate-900">24</p>
+                <p className="text-sm font-semibold text-slate-500">
+                  участника
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-amber-50 p-4">
+                <Trophy className="mb-2 text-amber-500" size={22} />
+                <p className="text-2xl font-black text-slate-900">1850</p>
+                <p className="text-sm font-semibold text-slate-500">
+                  лучший счёт
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </section>
+    </main>
   );
 }
