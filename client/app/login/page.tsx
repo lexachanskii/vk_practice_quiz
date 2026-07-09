@@ -10,8 +10,8 @@ import { loginUser } from "@/lib/auth";
 export default function LoginPage() {
   const router = useRouter();
 
-  const [email, setEmail] = useState("organizer@test.com");
-  const [password, setPassword] = useState("123456");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -61,7 +61,7 @@ export default function LoginPage() {
           <AppInput
             label="Email"
             type="email"
-            placeholder="organizer@test.com"
+            placeholder=""
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
@@ -70,7 +70,7 @@ export default function LoginPage() {
           <AppInput
             label="Пароль"
             type="password"
-            placeholder="••••••••"
+            placeholder=""
             value={password}
             onChange={(event) => setPassword(event.target.value)}
             required

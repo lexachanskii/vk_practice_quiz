@@ -215,14 +215,17 @@ export const joinSession: RequestHandler = async (req, res) => {
       return;
     }
 
+    const participantUserId =
+      req.user?.role === UserRole.PARTICIPANT ? req.user.id : undefined;
+
     const participant = await prisma.sessionParticipant.create({
       data: {
         sessionId: session.id,
-        userId: req.user?.id,
+        userId: participantUserId,
         nickname,
       },
     });
-
+    
     res.status(201).json({
       message: "Joined session successfully",
       session: {

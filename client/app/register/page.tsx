@@ -11,9 +11,9 @@ import type { UserRole } from "@/types/auth";
 export default function RegisterPage() {
   const router = useRouter();
 
-  const [name, setName] = useState("Дарья");
-  const [email, setEmail] = useState("organizer@test.com");
-  const [password, setPassword] = useState("123456");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [role, setRole] = useState<UserRole>("ORGANIZER");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -65,7 +65,7 @@ export default function RegisterPage() {
         <div className="flex flex-col gap-4">
           <AppInput
             label="Имя"
-            placeholder="Дарья"
+            placeholder="Введите имя"
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
@@ -74,7 +74,7 @@ export default function RegisterPage() {
           <AppInput
             label="Email"
             type="email"
-            placeholder="organizer@test.com"
+            placeholder="Введите email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             required
